@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cerrahi Alet Sayımı</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f1117;--card:#1a1f2e;--border:#2a3050;--accent:#4f8ef7;--accent2:#34d399;--danger:#f87171;--text:#e2e8f0;--muted:#64748b}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;overscroll-behavior:none}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 14px 10px;position:sticky;top:0;z-index:50}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.app-title{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);letter-spacing:1px}
+.app-title span{color:var(--muted);font-weight:500}
+.stats-row{display:flex;gap:6px;align-items:center}
+.stat-pill{background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--accent);font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.stat-pill.green{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.25);color:var(--accent2)}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0}
+.sync-dot.ok{background:var(--accent2)}.sync-dot.syncing{background:var(--accent);animation:pulse .8s infinite}.sync-dot.err{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.drag-toggle{background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:16px;padding:5px 9px;cursor:pointer;transition:all .15s;line-height:1}
+.drag-toggle.active{border-color:var(--accent);color:var(--accent);background:rgba(79,142,247,.1)}
+.search-bar{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;width:100%;outline:none;-webkit-appearance:none}
+.search-bar::placeholder{color:var(--muted);font-weight:400}.search-bar:focus{border-color:var(--accent)}
+.grid-wrap{padding:10px 8px 100px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:9px 4px 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;text-align:center;min-height:76px;user-select:none;-webkit-user-select:none;transition:transform .1s,border-color .2s,background .2s,opacity .2s;position:relative}
+.card:active{transform:scale(.92)}.card.has-qty{border-color:var(--accent2);background:rgba(52,211,153,.07)}
+.card.drag-mode{cursor:grab}.card.drag-mode:active{cursor:grabbing;transform:none}
+.card.dragging{opacity:.35;transform:scale(.95);border-style:dashed}
+.card.drag-over{border-color:var(--accent)!important;background:rgba(79,142,247,.12)!important;transform:scale(1.04)}
+.drag-handle{display:none;position:absolute;top:4px;right:5px;font-size:10px;color:var(--muted);line-height:1}
+.card.drag-mode .drag-handle{display:block}
+.card-name{font-size:9px;font-weight:700;line-height:1.3;color:var(--text);flex:1;display:flex;align-items:center;justify-content:center;word-break:break-word;padding:0 2px}
+.card.has-qty .card-name{color:#fff}
+.card-qty{margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:var(--accent2);line-height:1}
+.card-empty{font-size:13px;color:var(--border);margin-top:5px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.overlay.open{display:flex}
+.modal{background:#1a1f2e;border-radius:24px 24px 0 0;border:1px solid var(--border);border-bottom:none;width:100%;max-width:480px;padding:16px 14px 36px;animation:slideUp .2s cubic-bezier(.34,1.3,.64,1)}
+@keyframes slideUp{from{transform:translateY(110%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px}
+.modal-title{font-size:14px;font-weight:800;color:var(--text);text-align:center;margin-bottom:2px}
+.modal-sub{font-size:11px;color:var(--muted);text-align:center;margin-bottom:14px;font-family:'IBM Plex Mono',monospace}
+.qty-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px}
+.qty-opt{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:12px 4px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;transition:transform .08s,background .1s,border-color .1s}
+.qty-opt:active{transform:scale(.86)}
+.qty-opt.selected{background:var(--accent2);border-color:var(--accent2);color:#0f1117}
+.mbtn{flex:1;padding:13px;border-radius:12px;border:none;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:transform .1s}
+.mbtn:active{transform:scale(.95)}.mbtn-cancel{background:var(--bg);color:var(--muted);border:1.5px solid var(--border)}
+.mbtn-del{width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1.5px solid rgba(248,113,113,.3);background:rgba(248,113,113,.08);color:var(--danger);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.mbtn-del:active{transform:scale(.96)}
+.add-input{background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:14px;color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;font-weight:600;width:100%;outline:none;margin-bottom:14px;-webkit-appearance:none}
+.add-input:focus{border-color:var(--accent)}.add-input::placeholder{color:var(--muted);font-weight:400}
+.modal-actions{display:flex;gap:8px}
+.fab{position:fixed;bottom:24px;width:56px;height:56px;border-radius:50%;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100;transition:transform .1s}
+.fab:active{transform:scale(.9)}
+.fab-add{right:20px;background:var(--accent);color:#fff;box-shadow:0 4px 20px rgba(79,142,247,.45);font-size:28px}
+.fab-reset{left:20px;background:var(--card);color:var(--muted);border:1.5px solid var(--border)}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1f2e;border:1px solid var(--border);border-radius:20px;padding:8px 18px;font-size:12px;font-weight:700;color:var(--text);opacity:0;transition:opacity .25s,transform .25s;z-index:300;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="app-title">⚕ SAYIM <span>/ CERRAHİ</span></div>
+    <div class="stats-row">
+      <div class="sync-dot" id="sync-dot"></div>
+      <div class="stat-pill" id="s-kalem">— kalem</div>
+      <div class="stat-pill green" id="s-adet">— adet</div>
+      <button class="drag-toggle" id="drag-toggle" onclick="toggleDrag()">⠿</button>
+    </div>
+  </div>
+  <input class="search-bar" id="search" type="search" placeholder="🔍  Alet ara..." oninput="render()" autocomplete="off" autocorrect="off" spellcheck="false">
+</header>
+
+<div class="grid-wrap"><div class="grid" id="grid"></div></div>
+
+<div class="overlay" id="qty-overlay" onclick="overlayTap(event,'qty-overlay')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="m-name"></div>
+    <div class="modal-sub">adet seç → otomatik kaydeder</div>
+    <div class="qty-grid" id="qty-grid"></div>
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closeQty()">İptal</button>
+    </div>
+    <button class="mbtn-del" onclick="deleteItem()">🗑 Bu aleti sil</button>
+  </div>
+</div>
+
+<div class="overlay" id="add-overlay" onclick="overlayTap(event,'add-overlay')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Yeni Alet Ekle</div>
+    <div class="modal-sub" style="margin-bottom:16px">alet adını gir</div>
+    <input class="add-input" id="add-input" type="text" placeholder="Alet adı..." autocomplete="off">
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closeAdd()">İptal</button>
+      <button class="mbtn" style="background:var(--accent);color:#fff;flex:1" onclick="confirmAdd()">Ekle ✓</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab fab-reset" onclick="resetAll()">↺</button>
+<button class="fab fab-add" onclick="openAdd()">＋</button>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot, getDoc, collection, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCHfNAzkmv-Kv8HBcnjVsFbS-XORE0XVXU",
+  authDomain: "hasekipansuman.firebaseapp.com",
+  projectId: "hasekipansuman",
+  storageBucket: "hasekipansuman.firebasestorage.app",
+  messagingSenderId: "13838204763",
+  appId: "1:13838204763:web:494b4d9fde4827f358647e",
+  measurementId: "G-N6MX9MD9RR"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const DOC_ITEMS = doc(db, "sayim", "aletler");
+const COL_QTY   = collection(db, "adetler");
+
+const DEF = [
+  "Bistüri Sapı No:3","Koter Ucu; İğne","Stapler Alıcı","Bistüri Sapı No:4",
+  "Koter; Mp. Pilli","Sıvı Verme Kanülü","Dermal Punch","Küret",
+  "Cerrahi Alet Seti","Ekartör","Kemik Ronjuru","Elevatör",
+  "Makas; Batık Tırnak","Klemp; Bobjack","Makas; Düz","Klemp; Düz, Dişli",
+  "Makas; Eğri","Klemp; Düz, Dişsiz","Makas; Ofis","Klemp; Eğri, Dişli",
+  "Penset; Dişli","Klemp; Eğri, Dişsiz","Penset; Dişsiz","Klemp; Rightangle",
+  "Portegü","Bipolar Koter; Siyah","S. Döküm Kabı","Bipolar Koter; Sarı","Spekulum"
+];
+
+let items = [];
+let qty   = {};
+let curId = null;
+let dragMode = false;
+let dragSrcIdx = null;
+
+const syncDot = document.getElementById('sync-dot');
+const setSyncState = s => syncDot.className = 'sync-dot ' + s;
+
+onSnapshot(DOC_ITEMS, snap => {
+  if (snap.exists()) { const d = snap.data(); items = d.list || []; }
+  render(); setSyncState('ok');
+});
+
+onSnapshot(COL_QTY, snap => {
+  qty = {};
+  snap.forEach(d => { const dt = d.data(); qty[dt.id] = Number(dt.adet); });
+  render(); setSyncState('ok');
+});
+
+async function saveItems() {
+  setSyncState('syncing');
+  try { await setDoc(DOC_ITEMS, { list: items }); setSyncState('ok'); }
+  catch { setSyncState('err'); showToast('❌ Bağlantı hatası'); }
+}
+
+async function saveQtyItem(id) {
+  setSyncState('syncing');
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  try {
+    await setDoc(doc(db, "adetler", id), { id, ad: item.name, adet: String(qty[id]) });
+    setSyncState('ok');
+  } catch { setSyncState('err'); showToast('❌ Bağlantı hatası'); }
+}
+
+async function deleteQtyItem(id) {
+  setSyncState('syncing');
+  try {
+    await deleteDoc(doc(db, "adetler", id));
+    setSyncState('ok');
+  } catch { setSyncState('err'); showToast('❌ Bağlantı hatası'); }
+}
+
+async function resetQtyCollection() {
+  setSyncState('syncing');
+  try {
+    const snaps = await getDocs(COL_QTY);
+    const batch = writeBatch(db);
+    snaps.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    setSyncState('ok');
+  } catch { setSyncState('err'); showToast('❌ Bağlantı hatası'); }
+}
+
+(async () => {
+  const snap = await getDoc(DOC_ITEMS);
+  if (!snap.exists()) {
+    items = DEF.map((name,i) => ({ id: String(i+1), name }));
+    await saveItems();
+  }
+})();
+
+// RENDER
+window.render = function() {
+  const q = (document.getElementById('search').value||'').toLowerCase();
+  const list = items.filter(it => it.name.toLowerCase().includes(q));
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  list.forEach((item, idx) => {
+    const c = qty[item.id] || 0;
+    const div = document.createElement('div');
+    div.className = 'card' + (c>0?' has-qty':'') + (dragMode?' drag-mode':'');
+    div.dataset.id  = item.id;
+    div.dataset.idx = idx;
+    if (dragMode) {
+      div.draggable = true;
+      div.addEventListener('dragstart', onDragStart);
+      div.addEventListener('dragover',  onDragOver);
+      div.addEventListener('drop',      onDrop);
+      div.addEventListener('dragend',   onDragEnd);
+      div.addEventListener('touchstart', onTouchStart, {passive:true});
+      div.addEventListener('touchmove',  onTouchMove,  {passive:false});
+      div.addEventListener('touchend',   onTouchEnd);
+    } else {
+      div.onclick = () => openQty(item.id);
+    }
+    div.innerHTML = `<div class="drag-handle">⠿</div><div class="card-name">${item.name}</div>${c>0?`<div class="card-qty">${c}</div>`:'<div class="card-empty">—</div>'}`;
+    g.appendChild(div);
+  });
+  const total = Object.values(qty).reduce((s,v)=>s+(Number(v)||0),0);
+  document.getElementById('s-kalem').textContent = items.length + ' kalem';
+  document.getElementById('s-adet').textContent  = total + ' adet';
+};
+
+// QTY MODAL
+window.openQty = function(id) {
+  curId = id;
+  const item = items.find(i=>i.id===id);
+  document.getElementById('m-name').textContent = item.name;
+  buildQtyGrid();
+  document.getElementById('qty-overlay').classList.add('open');
+};
+
+function buildQtyGrid() {
+  const g = document.getElementById('qty-grid');
+  g.innerHTML = '';
+  const cur = qty[curId] || null;
+  for (let n=1; n<=25; n++) {
+    const b = document.createElement('button');
+    b.className = 'qty-opt' + (cur===n?' selected':'');
+    b.textContent = n;
+    b.onclick = () => pickQty(n);
+    g.appendChild(b);
+  }
+}
+
+async function pickQty(n) {
+  const id = curId;
+  qty[id] = n;
+  closeQty();
+  render();
+  await saveQtyItem(id);
+}
+
+window.closeQty = function() {
+  document.getElementById('qty-overlay').classList.remove('open');
+  curId = null;
+};
+
+window.deleteItem = async function() {
+  if (!confirm('Bu alet silinsin mi?')) return;
+  const id = curId;
+  items = items.filter(i=>i.id!==id);
+  delete qty[id];
+  closeQty();
+  render();
+  await saveItems();
+  await deleteQtyItem(id);
+};
+
+// ADD MODAL
+window.openAdd = function() {
+  document.getElementById('add-input').value = '';
+  document.getElementById('add-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('add-input').focus(),150);
+};
+
+window.closeAdd = function() {
+  document.getElementById('add-overlay').classList.remove('open');
+};
+
+window.confirmAdd = async function() {
+  const v = document.getElementById('add-input').value.trim();
+  if (!v) return;
+  const id = String(Date.now());
+  items.push({ id, name: v });
+  closeAdd();
+  render();
+  await saveItems();
+  showToast('✓ ' + v + ' eklendi');
+};
+
+// RESET
+window.resetAll = async function() {
+  if (!confirm('Tüm adetler sıfırlansın mı?')) return;
+  qty = {};
+  render();
+  await resetQtyCollection();
+  showToast('↺ Sıfırlandı');
+};
+
+// DRAG MODE
+window.toggleDrag = function() {
+  dragMode = !dragMode;
+  document.getElementById('drag-toggle').classList.toggle('active', dragMode);
+  document.getElementById('search').value = '';
+  render();
+  showToast(dragMode ? '⠿ Sıralama modu açık' : '✓ Sıra kaydedildi');
+};
+
+// Desktop drag
+function onDragStart(e) {
+  dragSrcIdx = parseInt(this.dataset.idx);
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('drag-over'));
+  this.classList.add('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  const ti = parseInt(this.dataset.idx);
+  if (dragSrcIdx===null || dragSrcIdx===ti) return;
+  const moved = items.splice(dragSrcIdx,1)[0];
+  items.splice(ti,0,moved);
+  saveItems(); render();
+}
+function onDragEnd() {
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('dragging','drag-over'));
+  dragSrcIdx = null;
+}
+
+// Touch drag
+let touchSrc=null, touchClone=null, touchSrcIdx=null;
+
+function onTouchStart(e) {
+  touchSrc = this;
+  touchSrcIdx = parseInt(this.dataset.idx);
+  const t = e.touches[0];
+  const r = this.getBoundingClientRect();
+  touchClone = this.cloneNode(true);
+  touchClone.style.cssText = `position:fixed;z-index:999;pointer-events:none;opacity:.85;width:${r.width}px;height:${r.height}px;left:${r.left}px;top:${r.top}px;border-radius:12px;background:#1a1f2e;border:2px solid var(--accent);transform:scale(1.08);transition:none`;
+  document.body.appendChild(touchClone);
+  this.style.opacity = '.3';
+}
+function onTouchMove(e) {
+  e.preventDefault();
+  if (!touchClone) return;
+  const t = e.touches[0];
+  const r = touchSrc.getBoundingClientRect();
+  touchClone.style.left = (t.clientX - r.width/2) + 'px';
+  touchClone.style.top  = (t.clientY - r.height/2) + 'px';
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('drag-over'));
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const card = el ? el.closest('.card') : null;
+  if (card && card !== touchSrc) card.classList.add('drag-over');
+}
+function onTouchEnd(e) {
+  if (!touchClone) return;
+  const t = e.changedTouches[0];
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const card = el ? el.closest('.card') : null;
+  if (card && card !== touchSrc) {
+    const ti = parseInt(card.dataset.idx);
+    if (touchSrcIdx !== ti) {
+      const moved = items.splice(touchSrcIdx,1)[0];
+      items.splice(ti,0,moved);
+      saveItems();
+    }
+  }
+  touchClone.remove(); touchClone = null;
+  if (touchSrc) touchSrc.style.opacity = '';
+  touchSrc = null; touchSrcIdx = null;
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('drag-over'));
+  render();
+}
+
+// UTILS
+window.overlayTap = function(e,id) {
+  if (e.target===document.getElementById(id)) {
+    if (id==='qty-overlay') closeQty(); else closeAdd();
+  }
+};
+
+let toastTimer;
+window.showToast = function(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2000);
+};
+
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape'){closeQty();closeAdd();}
+  if (e.key==='Enter' && document.getElementById('add-overlay').classList.contains('open')) confirmAdd();
+});
+</script>
+</body>
+</html>
